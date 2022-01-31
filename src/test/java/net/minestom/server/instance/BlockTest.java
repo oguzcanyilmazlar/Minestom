@@ -35,12 +35,12 @@ public class BlockTest {
     @Test
     public void testProperty() {
         Block block = Block.CHEST;
-        assertEquals(block.properties(), Objects.requireNonNull(Block.fromBlockId(block.id())).properties());
-
         // Default state may change, but the test is required to ensure the `properties` method is working
         assertEquals(Map.of("facing", "north",
                 "type", "single",
                 "waterlogged", "false"), block.properties());
+
+        assertEquals(block.properties(), Objects.requireNonNull(Block.fromBlockId(block.id())).properties());
 
         for (var possible : block.possibleStates()) {
             assertEquals(possible, block.withProperties(possible.properties()));

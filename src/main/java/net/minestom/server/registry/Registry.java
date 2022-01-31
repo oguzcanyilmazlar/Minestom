@@ -2,6 +2,7 @@ package net.minestom.server.registry;
 
 import com.google.gson.ToNumberPolicy;
 import com.google.gson.stream.JsonReader;
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.entity.EntitySpawnType;
 import net.minestom.server.entity.EquipmentSlot;
@@ -26,8 +27,8 @@ import java.util.function.Supplier;
  */
 public final class Registry {
     @ApiStatus.Internal
-    public static BlockEntry block(String namespace, @NotNull Properties main) {
-        return new BlockEntry(namespace, main, null);
+    public static BlockEntry block(String namespace, int stateId, @NotNull Properties main) {
+        return new BlockEntry(namespace, stateId, main);
     }
 
     @ApiStatus.Internal
@@ -166,11 +167,11 @@ public final class Registry {
         private final Supplier<Material> materialSupplier;
         private final Properties custom;
 
-        private BlockEntry(String namespace, Properties main, Properties custom) {
+        private BlockEntry(String namespace, int stateId, Properties main, Properties custom) {
             this.custom = custom;
             this.namespace = NamespaceID.from(namespace);
             this.id = main.getInt("id");
-            this.stateId = main.getInt("stateId");
+            this.stateId = stateId;
             this.translationKey = main.getString("translationKey");
             this.hardness = main.getDouble("hardness");
             this.explosionResistance = main.getDouble("explosionResistance");
@@ -418,7 +419,7 @@ public final class Registry {
                 yield list;
             }
             case BEGIN_OBJECT -> {
-                Map<String, Object> map = new HashMap<>();
+                Object2ObjectArrayMap<String, Object> map = new Object2ObjectArrayMap<>();
                 reader.beginObject();
                 while (reader.hasNext()) map.put(reader.nextName(), readObject(reader));
                 reader.endObject();

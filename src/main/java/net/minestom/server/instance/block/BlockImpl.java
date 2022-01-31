@@ -4,6 +4,8 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
 import net.minestom.server.registry.Registry;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.utils.ArrayUtils;
@@ -18,6 +20,7 @@ import org.jglrxavpok.hephaistos.nbt.mutable.MutableNBTCompound;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 record BlockImpl(@NotNull Registry.BlockEntry registry,
@@ -31,7 +34,7 @@ record BlockImpl(@NotNull Registry.BlockEntry registry,
     // Block id -> [property key -> values]
     private static final ObjectArray<String[][]> PROPERTIES_VALUES = new ObjectArray<>();
     // Block id -> Map<PropertiesValues, Block>
-    private static final ObjectArray<Map<PropertiesHolder, BlockImpl>> POSSIBLE_STATES = new ObjectArray<>();
+    private static final ObjectArray<BlockImpl[]> POSSIBLE_STATES = new ObjectArray<>();
     private static final Registry.Container<Block> CONTAINER = Registry.createContainer(Registry.Resource.BLOCKS,
             (namespace, properties) -> {
                 final int blockId = properties.getInt("id");
@@ -60,38 +63,22 @@ record BlockImpl(@NotNull Registry.BlockEntry registry,
                 PROPERTIES_VALUES.set(blockId, values);
 
                 // Retrieve block states
-                {
-                    final int propertiesCount = stateObject.size();
-                    PropertiesHolder[] propertiesKeys = new PropertiesHolder[propertiesCount];
-                    BlockImpl[] blocksValues = new BlockImpl[propertiesCount];
-                    int propertiesOffset = 0;
-                    for (var stateEntry : stateObject) {
-                        final String query = stateEntry.getKey();
-                        final var stateOverride = (Map<String, Object>) stateEntry.getValue();
-                        final var propertyMap = BlockUtils.parseProperties(query);
-                        assert keys.length == propertyMap.size();
-                        byte[] propertiesArray = new byte[keys.length];
-                        for (var entry : propertyMap.entrySet()) {
-                            final int keyIndex = ArrayUtils.indexOf(keys, entry.getKey());
-                            if (keyIndex == -1) {
-                                throw new IllegalArgumentException("Unknown property key: " + entry.getKey());
-                            }
-                            final byte valueIndex = (byte) ArrayUtils.indexOf(values[keyIndex], entry.getValue());
-                            if (valueIndex == -1) {
-                                throw new IllegalArgumentException("Unknown property value: " + entry.getValue());
-                            }
-                            propertiesArray[keyIndex] = valueIndex;
-                        }
+                String[][] finalValues = values;
+                int propertiesCount = 1;
+                for (var v : values) propertiesCount *= v.length;
 
-                        var mainProperties = Registry.Properties.fromMap(new MergedMap<>(properties.asMap(), stateOverride));
-                        final BlockImpl block = new BlockImpl(Registry.block(namespace, mainProperties),
-                                propertiesArray, null, null);
-                        BLOCK_STATE_MAP.set(block.stateId(), block);
-                        propertiesKeys[propertiesOffset] = new PropertiesHolder(propertiesArray);
-                        blocksValues[propertiesOffset++] = block;
-                    }
-                    POSSIBLE_STATES.set(blockId, ArrayUtils.toMap(propertiesKeys, blocksValues, propertiesOffset));
-                }
+                BlockImpl[] possibleBlocks = new BlockImpl[propertiesCount];
+                final int minStateId = properties.getInt("minStateId");
+                forStates(finalValues, (propertiesArray, index) -> {
+                    // TODO registry override
+                    final int stateID = minStateId + index;
+                    final BlockImpl block = new BlockImpl(Registry.block(namespace, stateID, properties),
+                            propertiesArray, null, null);
+                    BLOCK_STATE_MAP.set(stateID, block);
+                    possibleBlocks[index] = block;
+                });
+                POSSIBLE_STATES.set(blockId, possibleBlocks);
+
                 // Register default state
                 final int defaultState = properties.getInt("defaultStateId");
                 return getState(defaultState);
@@ -144,7 +131,7 @@ record BlockImpl(@NotNull Registry.BlockEntry registry,
         }
         var properties = this.propertiesArray.clone();
         properties[keyIndex] = valueIndex;
-        return compute(properties);
+        return compute(properties, values);
     }
 
     @Override
@@ -166,7 +153,7 @@ record BlockImpl(@NotNull Registry.BlockEntry registry,
             }
             result[keyIndex] = valueIndex;
         }
-        return compute(result);
+        return compute(result, values);
     }
 
     @Override
@@ -197,7 +184,7 @@ record BlockImpl(@NotNull Registry.BlockEntry registry,
 
     @Override
     public @NotNull Collection<@NotNull Block> possibleStates() {
-        return Collection.class.cast(possibleProperties().values());
+        return ObjectLists.unmodifiable(ObjectArrayList.wrap(possibleProperties()));
     }
 
     @Override
@@ -205,7 +192,7 @@ record BlockImpl(@NotNull Registry.BlockEntry registry,
         return tag.read(Objects.requireNonNullElse(nbt, NBTCompound.EMPTY));
     }
 
-    private Map<PropertiesHolder, BlockImpl> possibleProperties() {
+    private BlockImpl[] possibleProperties() {
         return POSSIBLE_STATES.get(id());
     }
 
@@ -226,33 +213,42 @@ record BlockImpl(@NotNull Registry.BlockEntry registry,
         return Objects.hash(stateId(), nbt, handler);
     }
 
-    private Block compute(byte[] properties) {
+    private Block compute(byte[] properties, String[][] values) {
         if (Arrays.equals(propertiesArray, properties)) return this;
-        BlockImpl block = possibleProperties().get(new PropertiesHolder(properties));
-        if (block == null)
-            throw new IllegalArgumentException("Invalid properties: " + Arrays.toString(properties) + " for block " + this);
+        int propertiesCount = 1;
+        int id = 0;
+        for (int i = properties.length - 1; i >= 0; i--) {
+            id += properties[i] * propertiesCount;
+            propertiesCount *= values[i].length;
+        }
+        BlockImpl block = possibleProperties()[id];
+        assert Arrays.equals(properties, block.propertiesArray) :
+                """
+                        Invalid properties compute
+                        Expected: %s
+                        Actual: %s
+                        """.formatted(Arrays.toString(properties), Arrays.toString(block.propertiesArray));
         return nbt == null && handler == null ? block : new BlockImpl(block.registry(), block.propertiesArray, nbt, handler);
     }
 
-    private static final class PropertiesHolder {
-        private final byte[] properties;
-        private final int hashCode;
+    private static <T> void forStates(T[][] sets, BiConsumer<byte[], Integer> consumer) {
+        int count = 0;
+        while (true) {
+            int tmp = count;
+            byte[] value = new byte[sets.length];
+            for (int i = value.length - 1; i >= 0; i--) {
+                final T[] set = sets[i];
+                final int radix = set.length;
+                final int index = tmp % radix;
 
-        public PropertiesHolder(byte[] properties) {
-            this.properties = properties;
-            this.hashCode = Arrays.hashCode(properties);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof PropertiesHolder that)) return false;
-            return Arrays.equals(properties, that.properties);
-        }
-
-        @Override
-        public int hashCode() {
-            return hashCode;
+                value[i] = (byte) index;
+                tmp /= radix;
+            }
+            if (tmp != 0) {
+                // Overflow.
+                break;
+            }
+            consumer.accept(value, count++);
         }
     }
 }
