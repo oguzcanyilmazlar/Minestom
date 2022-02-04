@@ -28,7 +28,7 @@ import java.util.function.Supplier;
 public final class Registry {
     @ApiStatus.Internal
     public static BlockEntry block(String namespace, int stateId, @NotNull Properties main) {
-        return new BlockEntry(namespace, stateId, main);
+        return new BlockEntry(namespace, stateId, main, null);
     }
 
     @ApiStatus.Internal
