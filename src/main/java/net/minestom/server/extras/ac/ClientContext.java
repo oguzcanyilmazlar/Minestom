@@ -10,6 +10,7 @@ import net.minestom.server.network.packet.client.play.ClientPlayerPositionPacket
 import net.minestom.server.network.packet.client.play.ClientSettingsPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.play.ChunkDataPacket;
+import net.minestom.server.network.packet.server.play.UnloadChunkPacket;
 import net.minestom.server.utils.binary.BinaryReader;
 import net.minestom.server.utils.chunk.ChunkUtils;
 import org.jctools.queues.MpscUnboundedXaddArrayQueue;
@@ -35,6 +36,7 @@ final class ClientContext {
         registerClientPacket(ClientPlayerPositionPacket.class, packet -> handleMovement(packet.position()));
 
         registerServerPacket(ChunkDataPacket.class, this::handleChunkData);
+        registerServerPacket(UnloadChunkPacket.class, this::handleUnloadChunk);
     }
 
     synchronized void process() {
@@ -78,6 +80,11 @@ final class ClientContext {
     private void handleChunkData(ChunkDataPacket chunkDataPacket) {
         final long index = ChunkUtils.getChunkIndex(chunkDataPacket.chunkX(), chunkDataPacket.chunkZ());
         this.visibleChunks.put(index, new Chunk(chunkDataPacket));
+    }
+
+    private void handleUnloadChunk(UnloadChunkPacket unloadChunkPacket) {
+        final long index = ChunkUtils.getChunkIndex(unloadChunkPacket.chunkX(), unloadChunkPacket.chunkZ());
+        this.visibleChunks.remove(index);
     }
 
     private <T> void registerClientPacket(Class<T> packetClass, Consumer<T> consumer) {
