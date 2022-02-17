@@ -51,7 +51,7 @@ public final class PacketUtils {
 
     public static final boolean GROUPED_PACKET = getBoolean("minestom.grouped-packet", true);
     public static final boolean CACHED_PACKET = getBoolean("minestom.cached-packet", true);
-    public static final boolean VIEWABLE_PACKET = getBoolean("minestom.viewable-packet", true);
+    public static final boolean VIEWABLE_PACKET = getBoolean("minestom.viewable-packet", false);
 
     // Viewable packets
     private static final Cache<Viewable, ViewableStorage> VIEWABLE_STORAGE_MAP = Caffeine.newBuilder().weakKeys().build();
