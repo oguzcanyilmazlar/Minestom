@@ -45,6 +45,7 @@ dependencies {
     // Junit Testing Framework
     testImplementation(libs.junit.api)
     testImplementation(libs.junit.params)
+    testImplementation("com.github.ReplayMod:ReplayStudio:70f59efaa3")
     testRuntimeOnly(libs.junit.engine)
     // Only here to ensure J9 module support for extensions and our classloaders
     testCompileOnly(libs.mockito.core)
