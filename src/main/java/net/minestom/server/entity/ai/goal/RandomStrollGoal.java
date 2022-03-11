@@ -38,10 +38,7 @@ public class RandomStrollGoal extends GoalSelector {
             final Vec position = closePositions.get(index);
 
             final var target = entityCreature.getPosition().add(position);
-            final boolean result = entityCreature.getNavigator().setPathTo(target);
-            if (result) {
-                break;
-            }
+            this.entityCreature.getNavigator().setPathTo(target);
         }
     }
 

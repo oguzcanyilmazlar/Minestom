@@ -1,18 +1,13 @@
 package net.minestom.server.entity.pathfinding;
 
 import com.extollit.gaming.ai.path.HydrazinePathFinder;
-import com.extollit.gaming.ai.path.PathOptions;
-import com.extollit.gaming.ai.path.model.IPath;
+import net.minestom.server.attribute.Attribute;
 import net.minestom.server.collision.CollisionUtils;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.LivingEntity;
-import net.minestom.server.instance.Chunk;
-import net.minestom.server.instance.Instance;
-import net.minestom.server.instance.WorldBorder;
-import net.minestom.server.utils.chunk.ChunkUtils;
 import net.minestom.server.utils.position.PositionUtils;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -24,15 +19,12 @@ import org.jetbrains.annotations.Nullable;
  * Necessary object for all {@link NavigableEntity}.
  */
 public final class Navigator {
-    private final PFPathingEntity pathingEntity;
-    private HydrazinePathFinder pathFinder;
-    private Point pathPosition;
-
     private final Entity entity;
+    private final HydraPathImpl pathfinder;
 
     public Navigator(@NotNull Entity entity) {
         this.entity = entity;
-        this.pathingEntity = new PFPathingEntity(this);
+        this.pathfinder = new HydraPathImpl(this);
     }
 
     /**
@@ -69,76 +61,22 @@ public final class Navigator {
         this.entity.setVelocity(new Vec(0, height * 2.5f, 0));
     }
 
-    /**
-     * Retrieves the path to {@code position} and ask the entity to follow the path.
-     * <p>
-     * Can be set to null to reset the pathfinder.
-     * <p>
-     * The position is cloned, if you want the entity to continually follow this position object
-     * you need to call this when you want the path to update.
-     *
-     * @param point      the position to find the path to, null to reset the pathfinder
-     * @param bestEffort whether to use the best-effort algorithm to the destination,
-     *                   if false then this method is more likely to return immediately
-     * @return true if a path has been found
-     */
-    public synchronized boolean setPathTo(@Nullable Point point, boolean bestEffort) {
-        if (point != null && pathPosition != null && point.samePoint(pathPosition)) {
-            // Tried to set path to the same target position
-            return false;
-        }
-        final Instance instance = entity.getInstance();
-        if (pathFinder == null) {
-            // Unexpected error
-            return false;
-        }
-        this.pathFinder.reset();
-        if (point == null) {
-            return false;
-        }
-        // Can't path with a null instance.
-        if (instance == null) {
-            return false;
-        }
-        // Can't path outside the world border
-        final WorldBorder worldBorder = instance.getWorldBorder();
-        if (!worldBorder.isInside(point)) {
-            return false;
-        }
-        // Can't path in an unloaded chunk
-        final Chunk chunk = instance.getChunkAt(point);
-        if (!ChunkUtils.isLoaded(chunk)) {
-            return false;
-        }
-
-        final PathOptions pathOptions = new PathOptions()
-                .targetingStrategy(bestEffort ? PathOptions.TargetingStrategy.gravitySnap :
-                        PathOptions.TargetingStrategy.none);
-        final IPath path = pathFinder.initiatePathTo(
-                point.x(),
-                point.y(),
-                point.z(),
-                pathOptions);
-
-        final boolean success = path != null;
-        this.pathPosition = success ? point : null;
-        return success;
-    }
-
-    /**
-     * @see #setPathTo(Point, boolean) with {@code bestEffort} sets to {@code true}.
-     */
-    public boolean setPathTo(@Nullable Point position) {
-        return setPathTo(position, true);
+    public void setPathTo(@Nullable Point point) {
+        this.pathfinder.updatePath(point);
     }
 
     @ApiStatus.Internal
     public synchronized void tick() {
-        if (pathPosition == null) return; // No path
         if (entity instanceof LivingEntity && ((LivingEntity) entity).isDead())
             return; // No pathfinding tick for dead entities
-        if (pathFinder.updatePathFor(pathingEntity) == null) {
-            reset();
+        final Point next = this.pathfinder.nextPoint(entity.getPosition());
+        //System.out.println("move " + next);
+        if (next != null) {
+            moveTowards(next, getAttributeValue(Attribute.MOVEMENT_SPEED));
+            final double entityY = entity.getPosition().y();
+            if (entityY < next.y()) {
+                jump(1);
+            }
         }
     }
 
@@ -148,7 +86,7 @@ public final class Navigator {
      * @return the target pathfinder position, null if there is no one
      */
     public @Nullable Point getPathPosition() {
-        return pathPosition;
+        return pathfinder.pathPosition;
     }
 
     public @NotNull Entity getEntity() {
@@ -157,16 +95,18 @@ public final class Navigator {
 
     @ApiStatus.Internal
     public @NotNull PFPathingEntity getPathingEntity() {
-        return pathingEntity;
+        return pathfinder.pathingEntity;
     }
 
     @ApiStatus.Internal
     public void setPathFinder(@Nullable HydrazinePathFinder pathFinder) {
-        this.pathFinder = pathFinder;
+        pathfinder.pathFinder = pathFinder;
     }
 
-    private void reset() {
-        this.pathPosition = null;
-        this.pathFinder.reset();
+    private float getAttributeValue(@NotNull Attribute attribute) {
+        if (entity instanceof LivingEntity) {
+            return ((LivingEntity) entity).getAttributeValue(attribute);
+        }
+        return 0f;
     }
 }
