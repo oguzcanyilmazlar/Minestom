@@ -1,11 +1,9 @@
 package net.minestom.server.entity.pathfinding;
 
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
-import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.particle.Particle;
 import net.minestom.server.particle.ParticleCreator;
 import net.minestom.server.utils.PacketUtils;
@@ -20,7 +18,7 @@ final class PathfinderImpl implements Pathfinder {
     volatile Point pathPosition;
     volatile List<Point> path;
 
-    public PathfinderImpl(Entity entity) {
+    PathfinderImpl(Entity entity) {
         this.entity = entity;
     }
 
@@ -83,13 +81,9 @@ final class PathfinderImpl implements Pathfinder {
             nextSet.remove(current);
 
             // TODO: Remove this debug
-            ServerPacket packet = ParticleCreator.createParticlePacket(
-                    Particle.FLAME,
-                    current.x(), current.y(), current.z(),
-                    0, 0, 0,
-                    1
-            );
-            PacketUtils.sendGroupedPacket(MinecraftServer.getConnectionManager().getOnlinePlayers(), packet);
+            PacketUtils.broadcastPacket(ParticleCreator.createParticlePacket(
+                    Particle.FLAME, current.x(), current.y(), current.z(),
+                    0, 0, 0, 1));
 
             // Return if the current node is the goal
             if (current.distance(goal) - DELTA <= step) {
@@ -117,7 +111,6 @@ final class PathfinderImpl implements Pathfinder {
             // Mark the current node as visited
             closedSet.add(current);
         }
-
         // No path found
         return null;
     }

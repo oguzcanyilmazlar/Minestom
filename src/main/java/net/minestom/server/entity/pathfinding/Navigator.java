@@ -88,10 +88,6 @@ public final class Navigator {
         //return pathfinder.pathPosition;
     }
 
-    public @NotNull Entity getEntity() {
-        return entity;
-    }
-
     private float getAttributeValue(@NotNull Attribute attribute) {
         if (entity instanceof LivingEntity) {
             return ((LivingEntity) entity).getAttributeValue(attribute);
