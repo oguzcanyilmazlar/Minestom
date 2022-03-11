@@ -1,6 +1,5 @@
 package net.minestom.server.entity.pathfinding;
 
-import com.extollit.gaming.ai.path.HydrazinePathFinder;
 import net.minestom.server.attribute.Attribute;
 import net.minestom.server.collision.CollisionUtils;
 import net.minestom.server.coordinate.Point;
@@ -20,11 +19,11 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class Navigator {
     private final Entity entity;
-    private final HydraPathImpl pathfinder;
+    private final Pathfinder pathfinder;
 
     public Navigator(@NotNull Entity entity) {
         this.entity = entity;
-        this.pathfinder = new HydraPathImpl(this);
+        this.pathfinder = new PathfinderImpl(entity);
     }
 
     /**
@@ -70,7 +69,6 @@ public final class Navigator {
         if (entity instanceof LivingEntity && ((LivingEntity) entity).isDead())
             return; // No pathfinding tick for dead entities
         final Point next = this.pathfinder.nextPoint(entity.getPosition());
-        //System.out.println("move " + next);
         if (next != null) {
             moveTowards(next, getAttributeValue(Attribute.MOVEMENT_SPEED));
             final double entityY = entity.getPosition().y();
@@ -86,21 +84,12 @@ public final class Navigator {
      * @return the target pathfinder position, null if there is no one
      */
     public @Nullable Point getPathPosition() {
-        return pathfinder.pathPosition;
+        return null; // TODO
+        //return pathfinder.pathPosition;
     }
 
     public @NotNull Entity getEntity() {
         return entity;
-    }
-
-    @ApiStatus.Internal
-    public @NotNull PFPathingEntity getPathingEntity() {
-        return pathfinder.pathingEntity;
-    }
-
-    @ApiStatus.Internal
-    public void setPathFinder(@Nullable HydrazinePathFinder pathFinder) {
-        pathfinder.pathFinder = pathFinder;
     }
 
     private float getAttributeValue(@NotNull Attribute attribute) {

@@ -1,14 +1,11 @@
 package net.minestom.server.entity;
 
-import com.extollit.gaming.ai.path.HydrazinePathFinder;
-import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.ai.EntityAI;
 import net.minestom.server.entity.ai.EntityAIGroup;
 import net.minestom.server.entity.pathfinding.NavigableEntity;
 import net.minestom.server.entity.pathfinding.Navigator;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityAttackEvent;
-import net.minestom.server.instance.Instance;
 import net.minestom.server.utils.time.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,7 +14,6 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 public class EntityCreature extends LivingEntity implements NavigableEntity, EntityAI {
@@ -52,13 +48,6 @@ public class EntityCreature extends LivingEntity implements NavigableEntity, Ent
 
         // Fire, item pickup, ...
         super.update(time);
-    }
-
-    @Override
-    public CompletableFuture<Void> setInstance(@NotNull Instance instance, @NotNull Pos spawnPosition) {
-        this.navigator.setPathFinder(new HydrazinePathFinder(navigator.getPathingEntity(), instance.getInstanceSpace()));
-
-        return super.setInstance(instance, spawnPosition);
     }
 
     @Override
