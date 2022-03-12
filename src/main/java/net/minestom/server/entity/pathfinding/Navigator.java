@@ -2,14 +2,13 @@ package net.minestom.server.entity.pathfinding;
 
 import net.minestom.server.attribute.Attribute;
 import net.minestom.server.collision.CollisionUtils;
+import net.minestom.server.collision.PhysicsResult;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.LivingEntity;
 import net.minestom.server.particle.Particle;
-import net.minestom.server.particle.ParticleCreator;
-import net.minestom.server.utils.PacketUtils;
 import net.minestom.server.utils.position.PositionUtils;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -39,9 +38,9 @@ public final class Navigator {
         final Pos position = entity.getPosition();
 
         // Find the direction
-        double dx = direction.x() - position.x();
-        double dy = direction.y() - position.y();
-        double dz = direction.z() - position.z();
+        final double dx = direction.x() - position.x();
+        final double dy = direction.y() - position.y();
+        final double dz = direction.z() - position.z();
 
         // the purpose of these few lines is to slow down entities when they reach their destination
         double distSquared = dx * dx + dy * dy + dz * dz;
@@ -49,23 +48,23 @@ public final class Navigator {
             speed = distSquared;
         }
         // Find the movement speed
-        double radians = Math.atan2(dz, dx);
-        double speedX = Math.cos(radians) * speed;
-        double speedY = dy * speed;
-        double speedZ = Math.sin(radians) * speed;
+        final double radians = Math.atan2(dz, dx);
+        final double speedX = Math.cos(radians) * speed;
+        final double speedY = dy * speed;
+        final double speedZ = Math.sin(radians) * speed;
 
         // Now calculate the new yaw/pitch
-        float oldYaw = position.yaw();
-        float oldPitch = position.pitch();
-        float newYaw = PositionUtils.getLookYaw(dx, dz);
-        float newPitch = PositionUtils.getLookPitch(dx, dy, dz);
+        final float oldYaw = position.yaw();
+        final float oldPitch = position.pitch();
+        final float newYaw = PositionUtils.getLookYaw(dx, dz);
+        final float newPitch = PositionUtils.getLookPitch(dx, dy, dz);
 
         // Average the pitch and yaw to avoid jittering
-        float yaw = PositionUtils.averageYaw(PositionUtils.averageYaw(oldYaw, newYaw), oldYaw);
-        float pitch = PositionUtils.averagePitch(PositionUtils.averagePitch(oldPitch, newPitch), oldPitch);
+        final float yaw = PositionUtils.averageYaw(PositionUtils.averageYaw(oldYaw, newYaw), oldYaw);
+        final float pitch = PositionUtils.averagePitch(PositionUtils.averagePitch(oldPitch, newPitch), oldPitch);
 
         // Prevent ghosting, and refresh position
-        final var physicsResult = CollisionUtils.handlePhysics(entity, new Vec(speedX, speedY, speedZ));
+        final PhysicsResult physicsResult = CollisionUtils.handlePhysics(entity, new Vec(speedX, speedY, speedZ));
         this.entity.refreshPosition(physicsResult.newPosition().withView(yaw, pitch));
     }
 

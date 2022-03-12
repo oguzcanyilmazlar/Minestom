@@ -6,7 +6,6 @@ import net.minestom.server.entity.Entity;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.particle.Particle;
-import net.minestom.server.utils.block.BlockIterator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,7 +15,7 @@ import java.util.*;
  * A simplified, synchronized A* pathfinder.
  * This pathfinder is focussed on stability, not performance.
  * <p>
- *     If you would like to limit the entity to a
+ * If you would like to limit the entity to a
  * </p>
  */
 final class PathfinderImpl implements Pathfinder {
@@ -32,9 +31,10 @@ final class PathfinderImpl implements Pathfinder {
 
     /**
      * Creates an instance of this pathfinder.
-     * @param entity the entity to find a path for
+     *
+     * @param entity  the entity to find a path for
      * @param blocked the predicate to check if a block is blocked, {@link BlockedPredicate#BLOCK_SOLID_BLOCKS} if null
-     * @param cost the cost function to calculate the cost of a block, {@link CostFunction#BLOCK_SPEED_FACTOR} if null
+     * @param cost    the cost function to calculate the cost of a block, {@link CostFunction#BLOCK_SPEED_FACTOR} if null
      */
     PathfinderImpl(@NotNull Entity entity, @Nullable BlockedPredicate blocked, @Nullable CostFunction cost) {
         this.entity = entity;
@@ -81,8 +81,8 @@ final class PathfinderImpl implements Pathfinder {
     @Nullable List<Point> findPath(Point start, Point goal) {
         // The step is half of the lowest dimension of the entity's bounding box
         // This is used so that the entity will never be able to skip over any point in the path
-        BoundingBox box = entity.getBoundingBox();
-        double step = Math.min(box.width(), Math.min(box.height(), box.depth())) / 2;
+        final BoundingBox box = entity.getBoundingBox();
+        final double step = Math.min(box.width(), Math.min(box.height(), box.depth())) / 2;
 
         // The distance cost is the distance between the current point and the goal, plus the cost of the current point
         Comparator<Point> distanceCost = Comparator.comparingDouble(p ->
@@ -150,7 +150,7 @@ final class PathfinderImpl implements Pathfinder {
     }
 
     private static Point[] neighbors(Point point, double step) {
-        return new Point[] {
+        return new Point[]{
                 // Direct neighbors
                 point.add(step, 0, 0),
                 point.add(-step, 0, 0),
@@ -181,7 +181,7 @@ final class PathfinderImpl implements Pathfinder {
         };
     }
 
-    public interface BlockedPredicate {
+    interface BlockedPredicate {
         /**
          * A predicate used as default that blocks movement if any of the blocks are solid.
          */
@@ -193,15 +193,17 @@ final class PathfinderImpl implements Pathfinder {
 
         /**
          * Returns true if the given entity cannot move between the two points, false otherwise.
+         *
          * @param entity The entity to check.
-         * @param from The starting point.
-         * @param to The ending point.
+         * @param from   The starting point.
+         * @param to     The ending point.
          * @return True if the entity cannot move between the two points, false otherwise.
          */
         boolean test(@NotNull Entity entity, @NotNull Point from, @NotNull Point to);
 
         /**
          * Combines this predicate with another one.
+         *
          * @param other The other predicate.
          * @return A new predicate that returns true if either this or the other predicate returns true.
          */
@@ -210,7 +212,7 @@ final class PathfinderImpl implements Pathfinder {
         }
     }
 
-    public interface CostFunction {
+    interface CostFunction {
         /**
          * A cost function used as default that returns the block speed factor
          */
@@ -229,14 +231,16 @@ final class PathfinderImpl implements Pathfinder {
 
         /**
          * Returns the cost of moving from one point to another.
+         *
          * @param from The starting point.
-         * @param to The ending point.
+         * @param to   The ending point.
          * @return The cost of moving from one point to another.
          */
         double getCost(@NotNull Entity entity, @NotNull Point from, @NotNull Point to);
 
         /**
          * Combines this cost function with another cost function.
+         *
          * @param other The other cost function.
          * @return A new cost function that combines this cost function with the other cost function.
          */

@@ -17,6 +17,7 @@ import java.util.List;
 public interface Pathfinder {
     /**
      * This query will return the next point to reach the target, from the current position.
+     *
      * @param currentPoint the current position
      * @return the next point to reach the target, or null if a path does not currently exist
      */
@@ -24,12 +25,14 @@ public interface Pathfinder {
 
     /**
      * This method will update the path to the given target, starting a new path if none exists.
+     *
      * @param target the new target, or null to cancel the path
      */
     void updatePath(@Nullable Point target);
 
     /**
      * This method will force the path to the given target.
+     *
      * @param target the new target
      * @return the list of points to reach the target
      */
