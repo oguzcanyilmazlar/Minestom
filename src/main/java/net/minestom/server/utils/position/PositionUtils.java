@@ -24,4 +24,23 @@ public final class PositionUtils {
         final double radians = -Math.atan2(dy, Math.max(Math.abs(dx), Math.abs(dz)));
         return (float) Math.toDegrees(radians);
     }
+
+    private static float averageWrapped(float valueA, float valueB, float wrap) {
+        float diff = valueB - valueA;
+        while (diff > wrap / 2) {
+            diff -= wrap;
+        }
+        while (diff < -wrap / 2) {
+            diff += wrap;
+        }
+        return valueA + diff / 2;
+    }
+
+    public static float averagePitch(float pitchA, float pitchB) {
+        return averageWrapped(pitchA, pitchB, 180);
+    }
+
+    public static float averageYaw(float yawA, float yawB) {
+        return averageWrapped(yawA, yawB, 360);
+    }
 }

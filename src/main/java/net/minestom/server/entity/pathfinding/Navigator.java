@@ -7,12 +7,13 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.LivingEntity;
+import net.minestom.server.particle.Particle;
+import net.minestom.server.particle.ParticleCreator;
+import net.minestom.server.utils.PacketUtils;
 import net.minestom.server.utils.position.PositionUtils;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-// TODO all pathfinding requests could be processed in another thread
 
 /**
  * Necessary object for all {@link NavigableEntity}.
@@ -23,7 +24,7 @@ public final class Navigator {
 
     public Navigator(@NotNull Entity entity) {
         this.entity = entity;
-        this.pathfinder = new PathfinderImpl(entity);
+        this.pathfinder = new PathfinderImpl(entity, null, null);
     }
 
     /**
@@ -36,21 +37,34 @@ public final class Navigator {
      */
     public void moveTowards(@NotNull Point direction, double speed) {
         final Pos position = entity.getPosition();
-        final double dx = direction.x() - position.x();
-        final double dy = direction.y() - position.y();
-        final double dz = direction.z() - position.z();
+
+        // Find the direction
+        double dx = direction.x() - position.x();
+        double dy = direction.y() - position.y();
+        double dz = direction.z() - position.z();
+
         // the purpose of these few lines is to slow down entities when they reach their destination
-        final double distSquared = dx * dx + dy * dy + dz * dz;
+        double distSquared = dx * dx + dy * dy + dz * dz;
         if (speed > distSquared) {
             speed = distSquared;
         }
-        final double radians = Math.atan2(dz, dx);
-        final double speedX = Math.cos(radians) * speed;
-        final double speedY = dy * speed;
-        final double speedZ = Math.sin(radians) * speed;
-        final float yaw = PositionUtils.getLookYaw(dx, dz);
-        final float pitch = PositionUtils.getLookPitch(dx, dy, dz);
-        // Prevent ghosting
+        // Find the movement speed
+        double radians = Math.atan2(dz, dx);
+        double speedX = Math.cos(radians) * speed;
+        double speedY = dy * speed;
+        double speedZ = Math.sin(radians) * speed;
+
+        // Now calculate the new yaw/pitch
+        float oldYaw = position.yaw();
+        float oldPitch = position.pitch();
+        float newYaw = PositionUtils.getLookYaw(dx, dz);
+        float newPitch = PositionUtils.getLookPitch(dx, dy, dz);
+
+        // Average the pitch and yaw to avoid jittering
+        float yaw = PositionUtils.averageYaw(PositionUtils.averageYaw(oldYaw, newYaw), oldYaw);
+        float pitch = PositionUtils.averagePitch(PositionUtils.averagePitch(oldPitch, newPitch), oldPitch);
+
+        // Prevent ghosting, and refresh position
         final var physicsResult = CollisionUtils.handlePhysics(entity, new Vec(speedX, speedY, speedZ));
         this.entity.refreshPosition(physicsResult.newPosition().withView(yaw, pitch));
     }
@@ -71,6 +85,7 @@ public final class Navigator {
         final Point next = this.pathfinder.nextPoint(entity.getPosition());
         if (next != null) {
             moveTowards(next, getAttributeValue(Attribute.MOVEMENT_SPEED));
+            PathfindUtils.debugParticle(next, Particle.WHITE_ASH);
             final double entityY = entity.getPosition().y();
             if (entityY < next.y()) {
                 jump(1);
@@ -84,14 +99,13 @@ public final class Navigator {
      * @return the target pathfinder position, null if there is no one
      */
     public @Nullable Point getPathPosition() {
-        return null; // TODO
-        //return pathfinder.pathPosition;
+        return this.pathfinder.nextPoint(entity.getPosition());
     }
 
     private float getAttributeValue(@NotNull Attribute attribute) {
         if (entity instanceof LivingEntity) {
             return ((LivingEntity) entity).getAttributeValue(attribute);
         }
-        return 0f;
+        return attribute.defaultValue();
     }
 }

@@ -1,29 +1,49 @@
 package net.minestom.server.entity.pathfinding;
 
+import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.particle.Particle;
-import net.minestom.server.particle.ParticleCreator;
-import net.minestom.server.utils.PacketUtils;
+import net.minestom.server.utils.block.BlockIterator;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
+/**
+ * A simplified, synchronized A* pathfinder.
+ * This pathfinder is focussed on stability, not performance.
+ * <p>
+ *     If you would like to limit the entity to a
+ * </p>
+ */
 final class PathfinderImpl implements Pathfinder {
+    // The delta is used as a failsafe to avoid incorrect pathfinding, generally 0.01 is enough
     private static final double DELTA = 0.01;
-    private final Entity entity;
+
+    private final @NotNull Entity entity;
+    private final @NotNull BlockedPredicate blocked;
+    private final @NotNull CostFunction cost;
 
     volatile Point pathPosition;
     volatile List<Point> path;
 
-    PathfinderImpl(Entity entity) {
+    /**
+     * Creates an instance of this pathfinder.
+     * @param entity the entity to find a path for
+     * @param blocked the predicate to check if a block is blocked, {@link BlockedPredicate#BLOCK_SOLID_BLOCKS} if null
+     * @param cost the cost function to calculate the cost of a block, {@link CostFunction#BLOCK_SPEED_FACTOR} if null
+     */
+    PathfinderImpl(@NotNull Entity entity, @Nullable BlockedPredicate blocked, @Nullable CostFunction cost) {
         this.entity = entity;
+        this.blocked = blocked == null ? BlockedPredicate.BLOCK_SOLID_BLOCKS : blocked;
+        this.cost = cost == null ? CostFunction.BLOCK_SPEED_FACTOR : cost;
     }
 
     @Override
-    public Point nextPoint(Point currentPoint) {
+    public Point nextPoint(@NotNull Point currentPoint) {
         var path = this.path;
         if (path == null || path.isEmpty()) {
             return null;
@@ -46,25 +66,28 @@ final class PathfinderImpl implements Pathfinder {
     }
 
     @Override
-    public void updatePath(Point target) {
+    public void updatePath(@Nullable Point target) {
         var start = entity.getPosition();
-        var result = findPath(start, target, 1);
-        this.path = result.stream().toList();
+        this.path = findPath(start, target);
         this.pathPosition = target;
     }
 
     @Override
-    public List<Point> forcePath(Point target) {
+    public @Nullable List<Point> forcePath(Point target) {
         updatePath(target);
         return path;
     }
 
-    @Nullable Queue<Point> findPath(Point start, Point goal, double step) {
+    @Nullable List<Point> findPath(Point start, Point goal) {
+        // The step is half of the lowest dimension of the entity's bounding box
+        // This is used so that the entity will never be able to skip over any point in the path
+        BoundingBox box = entity.getBoundingBox();
+        double step = Math.min(box.width(), Math.min(box.height(), box.depth())) / 2;
+
+        // The distance cost is the distance between the current point and the goal, plus the cost of the current point
         Comparator<Point> distanceCost = Comparator.comparingDouble(p ->
-                p.distance(start) +
-                        p.distance(goal) +
-                        getCost(p, p)
-        );
+                p.distance(start) + p.distance(goal) + cost.getCost(entity, p, p));
+
         // The queue of nodes to be evaluated next
         Queue<Point> next = new PriorityQueue<>(distanceCost);
         Set<Point> nextSet = new HashSet<>();
@@ -81,9 +104,7 @@ final class PathfinderImpl implements Pathfinder {
             nextSet.remove(current);
 
             // TODO: Remove this debug
-            PacketUtils.broadcastPacket(ParticleCreator.createParticlePacket(
-                    Particle.FLAME, current.x(), current.y(), current.z(),
-                    0, 0, 0, 1));
+            PathfindUtils.debugParticle(current, Particle.SMOKE);
 
             // Return if the current node is the goal
             if (current.distance(goal) - DELTA <= step) {
@@ -98,7 +119,7 @@ final class PathfinderImpl implements Pathfinder {
                 }
 
                 // If the neighbor is not walkable, skip it
-                if (isBlocked(neighbor)) {
+                if (blocked.test(entity, current, neighbor)) {
                     continue;
                 }
 
@@ -115,18 +136,21 @@ final class PathfinderImpl implements Pathfinder {
         return null;
     }
 
-    private static Queue<Point> reconstructPath(Map<Point, Point> cameFrom, Point current) {
+    private static List<Point> reconstructPath(Map<Point, Point> cameFrom, Point current) {
         Deque<Point> path = new ArrayDeque<>();
         path.add(current);
         while (cameFrom.containsKey(current)) {
             current = cameFrom.get(current);
             path.addFirst(current);
         }
-        return path;
+        for (Point point : path) {
+            PathfindUtils.debugParticle(point, Particle.FLAME);
+        }
+        return List.copyOf(path);
     }
 
     private static Point[] neighbors(Point point, double step) {
-        return new Point[]{
+        return new Point[] {
                 // Direct neighbors
                 point.add(step, 0, 0),
                 point.add(-step, 0, 0),
@@ -157,22 +181,67 @@ final class PathfinderImpl implements Pathfinder {
         };
     }
 
-    public double getCost(Point from, Point to) {
-        // TODO: Implement line intersection algorithm to determine the cost
-        // The current algorithm is flawed and may tell the navigator to move through very
-        // specific corners that are not actually possible
-        Instance instance = entity.getInstance();
-        Objects.requireNonNull(instance, "The navigator must be in an instance while pathfinding.");
-        Block block = instance.getBlock(to);
-        if (block.isSolid()) {
-            return Double.POSITIVE_INFINITY;
+    public interface BlockedPredicate {
+        /**
+         * A predicate used as default that blocks movement if any of the blocks are solid.
+         */
+        BlockedPredicate BLOCK_SOLID_BLOCKS = (entity, from, to) -> {
+            Instance instance = entity.getInstance();
+            Objects.requireNonNull(instance, "The navigator must be in an instance while pathfinding.");
+            return PathfindUtils.isBlocked(to, entity.getBoundingBox(), instance);
+        };
+
+        /**
+         * Returns true if the given entity cannot move between the two points, false otherwise.
+         * @param entity The entity to check.
+         * @param from The starting point.
+         * @param to The ending point.
+         * @return True if the entity cannot move between the two points, false otherwise.
+         */
+        boolean test(@NotNull Entity entity, @NotNull Point from, @NotNull Point to);
+
+        /**
+         * Combines this predicate with another one.
+         * @param other The other predicate.
+         * @return A new predicate that returns true if either this or the other predicate returns true.
+         */
+        default @NotNull BlockedPredicate combine(@NotNull BlockedPredicate other) {
+            return (entity, from, to) -> test(entity, from, to) || other.test(entity, from, to);
         }
-        return block.registry().speedFactor();
     }
 
-    public boolean isBlocked(Point point) {
-        Instance instance = entity.getInstance();
-        Objects.requireNonNull(instance, "The navigator must be in an instance while pathfinding.");
-        return PathfindUtils.isBlocked(point, entity.getBoundingBox(), instance, 0.1);
+    public interface CostFunction {
+        /**
+         * A cost function used as default that returns the block speed factor
+         */
+        CostFunction BLOCK_SPEED_FACTOR = (entity, from, to) -> {
+            // TODO: Implement line intersection algorithm to determine the cost
+            // The current algorithm is flawed and may tell the navigator to move through very
+            // specific corners that are not actually possible
+            Instance instance = entity.getInstance();
+            Objects.requireNonNull(instance, "The navigator must be in an instance while pathfinding.");
+            Block block = instance.getBlock(to);
+            if (block.isSolid()) {
+                return Double.POSITIVE_INFINITY;
+            }
+            return block.registry().speedFactor();
+        };
+
+        /**
+         * Returns the cost of moving from one point to another.
+         * @param from The starting point.
+         * @param to The ending point.
+         * @return The cost of moving from one point to another.
+         */
+        double getCost(@NotNull Entity entity, @NotNull Point from, @NotNull Point to);
+
+        /**
+         * Combines this cost function with another cost function.
+         * @param other The other cost function.
+         * @return A new cost function that combines this cost function with the other cost function.
+         */
+        default @NotNull CostFunction combine(@NotNull CostFunction other) {
+            return (entity, from, to) -> getCost(entity, from, to) + other.getCost(entity, from, to);
+        }
     }
 }
