@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 @ApiStatus.Experimental
-public interface TagDatabase {
+public interface TagDatabase extends AutoCloseable {
     SelectQuery<NBTCompound> SELECT_ALL = selectAll().build();
 
     void insert(@NotNull TagHandler handler);
@@ -33,6 +33,9 @@ public interface TagDatabase {
         final List<NBTCompound> res = execute(query);
         return res.isEmpty() ? Optional.empty() : Optional.of(res.get(0));
     }
+
+    @Override
+    void close();
 
     static <T> @NotNull SelectBuilder<T> select(@NotNull Tag<T> tag) {
         return new TagDatabaseImpl.SelectBuilder<>(tag);
