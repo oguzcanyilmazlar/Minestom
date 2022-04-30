@@ -258,10 +258,9 @@ public class TagDatabaseTest {
             var tag = Tag.Integer("number");
             var compound = NBT.Compound(Map.of("number", NBT.Int(5)));
             var condition = Condition.eq(tag, 5);
-            var query = TagDatabase.delete().where(condition).build();
 
             db.insert(TagHandler.fromCompound(compound));
-            db.execute(query);
+            db.execute(TagDatabase.delete().where(condition).build());
 
             var result = db.execute(TagDatabase.selectAll().where(condition).build());
             assertTrue(result.isEmpty());
