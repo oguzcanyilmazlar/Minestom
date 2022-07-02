@@ -15,7 +15,7 @@ public class SendablePacketTest {
 
     @Test
     public void lazy() {
-        var packet = new SystemChatPacket(Component.text("Hello World!"), 1);
+        var packet = new SystemChatPacket(Component.text("Hello World!"), false);
         AtomicBoolean called = new AtomicBoolean(false);
         var lazy = new LazyPacket(() -> {
             if (called.getAndSet(true))
@@ -28,7 +28,7 @@ public class SendablePacketTest {
 
     @Test
     public void cached() {
-        var packet = new SystemChatPacket(Component.text("Hello World!"), 1);
+        var packet = new SystemChatPacket(Component.text("Hello World!"), false);
         var cached = new CachedPacket(packet);
         assertSame(packet, cached.packet());
 
