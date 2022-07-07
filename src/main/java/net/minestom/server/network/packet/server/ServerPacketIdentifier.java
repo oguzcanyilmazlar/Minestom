@@ -32,6 +32,7 @@ public final class ServerPacketIdentifier {
     public static final int WINDOW_PROPERTY = nextPlayId();
     public static final int SET_SLOT = nextPlayId();
     public static final int SET_COOLDOWN = nextPlayId();
+    public static final int CUSTOM_CHAT_COMPLETIONS = nextPlayId();
     public static final int PLUGIN_MESSAGE = nextPlayId();
     public static final int NAMED_SOUND_EFFECT = nextPlayId();
     public static final int DISCONNECT = nextPlayId();

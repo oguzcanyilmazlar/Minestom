@@ -46,8 +46,8 @@ public final class MinecraftServer {
 
     public final static Logger LOGGER = LoggerFactory.getLogger(MinecraftServer.class);
 
-    public static final String VERSION_NAME = "1.19.1";
-    public static final int PROTOCOL_VERSION = 1073741919;
+    public static final String VERSION_NAME = "1.19.1-pre3";
+    public static final int PROTOCOL_VERSION = 1073741920;
 
     // Threads
     public static final String THREAD_NAME_BENCHMARK = "Ms-Benchmark";
