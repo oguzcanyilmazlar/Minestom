@@ -35,6 +35,7 @@ public final class ServerPacketIdentifier {
     public static final int CUSTOM_CHAT_COMPLETIONS = nextPlayId();
     public static final int PLUGIN_MESSAGE = nextPlayId();
     public static final int NAMED_SOUND_EFFECT = nextPlayId();
+    public static final int DELETE_CHAT_MESSAGE = nextPlayId();
     public static final int DISCONNECT = nextPlayId();
     public static final int ENTITY_STATUS = nextPlayId();
     public static final int EXPLOSION = nextPlayId();
@@ -61,6 +62,7 @@ public final class ServerPacketIdentifier {
     public static final int CRAFT_RECIPE_RESPONSE = nextPlayId();
     public static final int PLAYER_ABILITIES = nextPlayId();
     public static final int PLAYER_CHAT = nextPlayId();
+    public static final int PLAYER_CHAT_HEADER = nextPlayId();
     public static final int END_COMBAT_EVENT = nextPlayId();
     public static final int ENTER_COMBAT_EVENT = nextPlayId();
     public static final int DEATH_COMBAT_EVENT = nextPlayId();
@@ -118,7 +120,7 @@ public final class ServerPacketIdentifier {
     public static final int DECLARE_RECIPES = nextPlayId();
     public static final int TAGS = nextPlayId();
 
-    private static int nextPlayId(){
+    private static int nextPlayId() {
         return PLAY_ID.getAndIncrement();
     }
 }
