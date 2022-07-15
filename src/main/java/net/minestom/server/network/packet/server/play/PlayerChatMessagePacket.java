@@ -26,7 +26,7 @@ public record PlayerChatMessagePacket(@NotNull Component signedContent, @Nullabl
         this(reader.readComponent(), reader.readBoolean() ? reader.readComponent() : null,
                 reader.readVarInt(), reader.readUuid(),
                 reader.readComponent(), reader.readBoolean() ? reader.readComponent() : null,
-                new MessageSignature(null, reader));
+                new MessageSignature(reader));
     }
 
     @Override

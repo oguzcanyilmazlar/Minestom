@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 
 public record DeleteChatPacket(@NotNull MessageSignature signature) implements ServerPacket {
     public DeleteChatPacket(BinaryReader reader) {
-        this(new MessageSignature(MessageSignature.UNSIGNED_SENDER, reader));
+        this(new MessageSignature(reader));
     }
 
     @Override

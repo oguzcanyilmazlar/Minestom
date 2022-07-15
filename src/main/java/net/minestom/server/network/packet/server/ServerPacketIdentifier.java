@@ -61,8 +61,8 @@ public final class ServerPacketIdentifier {
     public static final int PING = nextPlayId();
     public static final int CRAFT_RECIPE_RESPONSE = nextPlayId();
     public static final int PLAYER_ABILITIES = nextPlayId();
-    public static final int PLAYER_CHAT = nextPlayId();
     public static final int PLAYER_CHAT_HEADER = nextPlayId();
+    public static final int PLAYER_CHAT = nextPlayId();
     public static final int END_COMBAT_EVENT = nextPlayId();
     public static final int ENTER_COMBAT_EVENT = nextPlayId();
     public static final int DEATH_COMBAT_EVENT = nextPlayId();
