@@ -96,14 +96,9 @@ final class TagHandlerImpl implements TagHandler {
                 Node syncNode = traversePathWrite(root, tag, value != null);
                 if (syncNode != null) {
                     final UnaryOperator<T> listener = findListener(tag, value);
-                    if (listener != null) {
-                        final T tmpValue = listener.apply(value);
-                        // Check if nullability changed
-                        if (value == null && tmpValue != null || value != null && tmpValue == null) {
-                            syncNode = traversePathWrite(root, tag, tmpValue != null);
-                        }
-                        value = tmpValue;
-                    }
+                    final ListenerResult<T> result = unsafeListening(syncNode, tag, value, listener);
+                    syncNode = result.node();
+                    value = result.value();
                     syncNode.updateContent(value != null ? (NBTCompound) tag.entry.write(value) : NBTCompound.EMPTY);
                     syncNode.invalidate();
                 }
@@ -124,29 +119,34 @@ final class TagHandlerImpl implements TagHandler {
             previous.updateValue(tag.copyValue(value));
         } else {
             // Fallback to lock
-            slowSet(tag, value, listener);
+            synchronized (this) {
+                node = traversePathWrite(root, tag, value != null);
+                final ListenerResult<T> result = unsafeListening(node, tag, value, listener);
+                node = result.node();
+                value = result.value();
+                if (value != null) {
+                    node.entries.put(tag.index, valueToEntry(node, tag, value));
+                } else {
+                    if (node != null) node.entries.remove(tag.index);
+                }
+            }
         }
-        node.invalidate();
+        if (node != null) node.invalidate();
     }
 
-    private <T> void slowSet(Tag<T> tag, @Nullable T value,
-                             @Nullable UnaryOperator<T> listener) {
-        synchronized (this) {
-            Node node = traversePathWrite(root, tag, value != null);
-            if (listener != null) {
-                final T tmpValue = listener.apply(value);
-                // Check if nullability changed
-                if (value == null && tmpValue != null || value != null && tmpValue == null) {
-                    node = traversePathWrite(root, tag, tmpValue != null);
-                }
-                value = tmpValue;
+    private <T> ListenerResult<T> unsafeListening(Node node, Tag<T> tag, @Nullable T value, @Nullable UnaryOperator<T> listener) {
+        if (listener != null) {
+            final T tmpValue = listener.apply(value);
+            // Check if nullability changed
+            if (value == null && tmpValue != null || value != null && tmpValue == null) {
+                node = traversePathWrite(root, tag, tmpValue != null);
             }
-            if (value != null) {
-                node.entries.put(tag.index, valueToEntry(node, tag, value));
-            } else {
-                if (node != null) node.entries.remove(tag.index);
-            }
+            value = tmpValue;
         }
+        return new ListenerResult<>(node, value);
+    }
+
+    record ListenerResult<T>(Node node, T value) {
     }
 
     @Override
@@ -171,14 +171,9 @@ final class TagHandlerImpl implements TagHandler {
             T newValue = value.apply(previousValue);
 
             final UnaryOperator<T> listener = findListener(tag, newValue);
-            if (listener != null) {
-                final T tmpValue = listener.apply(newValue);
-                // Check if nullability changed
-                if (newValue == null && tmpValue != null || newValue != null && tmpValue == null) {
-                    node = traversePathWrite(root, tag, tmpValue != null);
-                }
-                newValue = tmpValue;
-            }
+            final ListenerResult<T> result = unsafeListening(node, tag, newValue, listener);
+            node = result.node();
+            newValue = result.value();
 
             node.updateContent((NBTCompoundLike) tag.entry.write(newValue));
             node.invalidate();
@@ -197,14 +192,9 @@ final class TagHandlerImpl implements TagHandler {
 
         // Handle listening
         final UnaryOperator<T> listener = findListener(tag, newValue);
-        if (listener != null) {
-            final T tmpValue = listener.apply(newValue);
-            // Check if nullability changed
-            if (newValue == null && tmpValue != null || newValue != null && tmpValue == null) {
-                node = traversePathWrite(root, tag, tmpValue != null);
-            }
-            newValue = tmpValue;
-        }
+        final ListenerResult<T> result = unsafeListening(node, tag, newValue, listener);
+        node = result.node();
+        newValue = result.value();
 
         // Update node
         if (newValue != null) node.entries.put(tagIndex, valueToEntry(node, tag, newValue));
