@@ -96,6 +96,14 @@ final class TagHandlerImpl implements TagHandler {
                 Node syncNode = traversePathWrite(root, tag, value != null);
                 if (syncNode != null) {
                     final UnaryOperator<T> listener = findListener(tag, value);
+                    if (listener != null) {
+                        final T tmpValue = listener.apply(value);
+                        // Check if nullability changed
+                        if (value == null && tmpValue != null || value != null && tmpValue == null) {
+                            syncNode = traversePathWrite(root, tag, tmpValue != null);
+                        }
+                        value = tmpValue;
+                    }
                     syncNode.updateContent(value != null ? (NBTCompound) tag.entry.write(value) : NBTCompound.EMPTY);
                     syncNode.invalidate();
                 }
@@ -160,7 +168,18 @@ final class TagHandlerImpl implements TagHandler {
         Node node = traversePathWrite(root, tag, true);
         if (tag.isView()) {
             final T previousValue = tag.read(node.compound());
-            final T newValue = value.apply(previousValue);
+            T newValue = value.apply(previousValue);
+
+            final UnaryOperator<T> listener = findListener(tag, newValue);
+            if (listener != null) {
+                final T tmpValue = listener.apply(newValue);
+                // Check if nullability changed
+                if (newValue == null && tmpValue != null || newValue != null && tmpValue == null) {
+                    node = traversePathWrite(root, tag, tmpValue != null);
+                }
+                newValue = tmpValue;
+            }
+
             node.updateContent((NBTCompoundLike) tag.entry.write(newValue));
             node.invalidate();
             return returnPrevious ? previousValue : newValue;

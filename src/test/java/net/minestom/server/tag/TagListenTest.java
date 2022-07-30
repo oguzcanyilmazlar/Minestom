@@ -116,12 +116,74 @@ public class TagListenTest {
     }
 
     @Test
+    public void setNbtConversionPath() {
+        record Test(int coin) {
+        }
+
+        var tag1 = Tag.Integer("coin").path("path", "path2", "path3");
+        var tag2 = Tag.Structure("path3", Test.class).path("path", "path2");
+
+        var counter = new AtomicInteger();
+        var handler = TagHandler.builder()
+                .listen(tag1, integer -> {
+                    switch (counter.getAndIncrement()) {
+                        case 0 -> assertEquals(5, integer);
+                        case 1 -> assertEquals(7, integer);
+                        default -> fail();
+                    }
+                    return integer;
+                })
+                .build();
+        // 0
+        handler.setTag(tag1, 5);
+        assertEquals(5, handler.getTag(tag1));
+        assertEquals(new Test(5), handler.getTag(tag2));
+        // 1
+        handler.setTag(tag2, new Test(7));
+        assertEquals(7, handler.getTag(tag1));
+        assertEquals(new Test(7), handler.getTag(tag2));
+
+        assertEquals(2, counter.get());
+    }
+
+    @Test
     public void updateNbtConversion() {
         record Test(int coin) {
         }
 
         var tag1 = Tag.Integer("coin").path("path");
         var tag2 = Tag.Structure("path", Test.class);
+
+        var counter = new AtomicInteger();
+        var handler = TagHandler.builder()
+                .listen(tag1, integer -> {
+                    switch (counter.getAndIncrement()) {
+                        case 0 -> assertEquals(5, integer);
+                        case 1 -> assertEquals(7, integer);
+                        default -> fail();
+                    }
+                    return integer;
+                })
+                .build();
+        // 0
+        handler.updateTag(tag1, integer -> 5);
+        assertEquals(5, handler.getTag(tag1));
+        assertEquals(new Test(5), handler.getTag(tag2));
+        // 1
+        handler.updateTag(tag2, test -> new Test(7));
+        assertEquals(7, handler.getTag(tag1));
+        assertEquals(new Test(7), handler.getTag(tag2));
+
+        assertEquals(2, counter.get());
+    }
+
+    @Test
+    public void updateNbtConversionPath() {
+        record Test(int coin) {
+        }
+
+        var tag1 = Tag.Integer("coin").path("path", "path2", "path3");
+        var tag2 = Tag.Structure("path3", Test.class).path("path", "path2");
 
         var counter = new AtomicInteger();
         var handler = TagHandler.builder()
