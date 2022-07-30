@@ -2,6 +2,7 @@ package net.minestom.server.tag;
 
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 import org.jglrxavpok.hephaistos.nbt.NBTCompound;
 import org.jglrxavpok.hephaistos.nbt.NBTCompoundLike;
@@ -74,5 +75,17 @@ public interface TagHandler extends TagReadable, TagWritable {
      */
     static @NotNull TagHandler fromCompound(@NotNull NBTCompoundLike compound) {
         return TagHandlerImpl.fromCompound(compound);
+    }
+
+    static @NotNull Builder builder() {
+        return new TagHandlerImpl.BuilderImpl();
+    }
+
+    @ApiStatus.Experimental
+    interface Builder {
+        <T> @NotNull Builder listen(@NotNull Tag<T> tag,
+                                    @NotNull UnaryOperator<@Nullable T> value);
+
+        @NotNull TagHandler build();
     }
 }

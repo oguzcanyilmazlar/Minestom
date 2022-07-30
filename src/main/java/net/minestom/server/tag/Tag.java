@@ -193,6 +193,18 @@ public class Tag<T> {
         write(nbtCompound, (T) value);
     }
 
+    final String pathString() {
+        final PathEntry[] path = this.path;
+        if (path == null) return key;
+        StringBuilder sb = new StringBuilder();
+        for (PathEntry entry : path) {
+            sb.append(entry.name());
+            if (!isView()) sb.append('.');
+        }
+        sb.append(key);
+        return sb.toString();
+    }
+
     final boolean isView() {
         return key.isEmpty();
     }

@@ -12,6 +12,7 @@ import org.jglrxavpok.hephaistos.nbt.NBTType;
 import org.jglrxavpok.hephaistos.nbt.mutable.MutableNBTCompound;
 
 import java.lang.invoke.VarHandle;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
@@ -22,12 +23,25 @@ final class TagHandlerImpl implements TagHandler {
     private final Node root;
     private volatile Node copy;
 
-    TagHandlerImpl(Node root) {
-        this.root = root;
-    }
+    // Options
+    private final Map<String, ListenerEntry<?>> listeners;
 
     TagHandlerImpl() {
         this.root = new Node();
+        this.listeners = Map.of();
+    }
+
+    // Builder constructor
+    TagHandlerImpl(BuilderImpl builder) {
+        this.root = new Node();
+        this.listeners = Map.copyOf(builder.listeners);
+    }
+
+    // Copy constructor
+    TagHandlerImpl(TagHandlerImpl previous) {
+        this.root = previous.root.copy(null);
+        // Options are not preserved on copy
+        this.listeners = Map.of();
     }
 
     static TagHandlerImpl fromCompound(NBTCompoundLike compoundLike) {
@@ -44,6 +58,36 @@ final class TagHandlerImpl implements TagHandler {
         return root.getTag(tag);
     }
 
+    private <T> UnaryOperator<T> findListener(Tag<T> tag, T value) {
+        var listeners = this.listeners;
+        if (listeners.isEmpty()) return null;
+
+        final String pathString = tag.pathString();
+        ListenerEntry<T> result = (ListenerEntry<T>) listeners.get(pathString);
+        if (result != null) {
+            return result.operator();
+        }
+
+        final NBT nbt = tag.entry.write(value);
+        if (nbt instanceof NBTCompound compound) {
+            for (var entry : compound.getEntries()) {
+                // TODO recursive
+                String test = pathString + "." + entry.getKey();
+                final ListenerEntry<T> listener = (ListenerEntry<T>) listeners.get(test);
+                if (listener != null) {
+                    return t -> {
+                        final T converted = listener.tag().entry.read(entry.getValue());
+                        final T updated = listener.operator().apply(converted);
+
+                        final NBTCompound finalNbt = compound.withEntries(Map.entry(entry.getKey(), listener.tag.entry.write(updated)));
+                        return tag.entry.read(finalNbt);
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
     @Override
     public <T> void setTag(@NotNull Tag<T> tag, @Nullable T value) {
         // Handle view tags
@@ -51,6 +95,7 @@ final class TagHandlerImpl implements TagHandler {
             synchronized (this) {
                 Node syncNode = traversePathWrite(root, tag, value != null);
                 if (syncNode != null) {
+                    final UnaryOperator<T> listener = findListener(tag, value);
                     syncNode.updateContent(value != null ? (NBTCompound) tag.entry.write(value) : NBTCompound.EMPTY);
                     syncNode.invalidate();
                 }
@@ -58,30 +103,42 @@ final class TagHandlerImpl implements TagHandler {
             return;
         }
         // Normal tag
-        final int tagIndex = tag.index;
         VarHandle.fullFence();
         Node node = traversePathWrite(root, tag, value != null);
         if (node == null)
             return; // Tried to remove an absent tag. Do nothing
+
+        final UnaryOperator<T> listener = findListener(tag, value);
         StaticIntMap<Entry<?>> entries = node.entries;
-        if (value != null) {
-            Entry previous = entries.get(tagIndex);
-            if (previous != null && previous.tag.shareValue(tag)) {
-                previous.updateValue(tag.copyValue(value));
-            } else {
-                synchronized (this) {
-                    node = traversePathWrite(root, tag, true);
-                    node.entries.put(tagIndex, valueToEntry(node, tag, value));
-                }
-            }
+        Entry previous;
+        if (value != null && (previous = entries.get(tag.index)) != null && listener == null && previous.tag.shareValue(tag)) {
+            // Fast lock-free update if a compatible entry is already present and there is no listener
+            previous.updateValue(tag.copyValue(value));
         } else {
-            synchronized (this) {
-                node = traversePathWrite(root, tag, false);
-                if (node == null) return;
-                node.entries.remove(tagIndex);
-            }
+            // Fallback to lock
+            slowSet(tag, value, listener);
         }
         node.invalidate();
+    }
+
+    private <T> void slowSet(Tag<T> tag, @Nullable T value,
+                             @Nullable UnaryOperator<T> listener) {
+        synchronized (this) {
+            Node node = traversePathWrite(root, tag, value != null);
+            if (listener != null) {
+                final T tmpValue = listener.apply(value);
+                // Check if nullability changed
+                if (value == null && tmpValue != null || value != null && tmpValue == null) {
+                    node = traversePathWrite(root, tag, tmpValue != null);
+                }
+                value = tmpValue;
+            }
+            if (value != null) {
+                node.entries.put(tag.index, valueToEntry(node, tag, value));
+            } else {
+                if (node != null) node.entries.remove(tag.index);
+            }
+        }
     }
 
     @Override
@@ -100,7 +157,7 @@ final class TagHandlerImpl implements TagHandler {
     }
 
     private synchronized <T> T updateTag0(@NotNull Tag<T> tag, @NotNull UnaryOperator<T> value, boolean returnPrevious) {
-        final Node node = traversePathWrite(root, tag, true);
+        Node node = traversePathWrite(root, tag, true);
         if (tag.isView()) {
             final T previousValue = tag.read(node.compound());
             final T newValue = value.apply(previousValue);
@@ -110,25 +167,29 @@ final class TagHandlerImpl implements TagHandler {
         }
 
         final int tagIndex = tag.index;
-        StaticIntMap<Entry<?>> entries = node.entries;
-
-        final Entry previousEntry = entries.get(tagIndex);
+        final Entry previousEntry = node.entries.get(tagIndex);
         final T previousValue;
         if (previousEntry != null) {
-            final Object previousTmp = previousEntry.value;
-            if (previousTmp instanceof Node n) {
-                final NBTCompound compound = NBT.Compound(Map.of(tag.getKey(), n.compound()));
-                previousValue = tag.read(compound);
-            } else {
-                previousValue = (T) previousTmp;
-            }
+            previousValue = (T) previousEntry.castValue(tag);
         } else {
             previousValue = tag.createDefault();
         }
-        final T newValue = value.apply(previousValue);
-        if (newValue != null) entries.put(tagIndex, valueToEntry(node, tag, newValue));
-        else entries.remove(tagIndex);
+        T newValue = value.apply(previousValue);
 
+        // Handle listening
+        final UnaryOperator<T> listener = findListener(tag, newValue);
+        if (listener != null) {
+            final T tmpValue = listener.apply(newValue);
+            // Check if nullability changed
+            if (newValue == null && tmpValue != null || newValue != null && tmpValue == null) {
+                node = traversePathWrite(root, tag, tmpValue != null);
+            }
+            newValue = tmpValue;
+        }
+
+        // Update node
+        if (newValue != null) node.entries.put(tagIndex, valueToEntry(node, tag, newValue));
+        else node.entries.remove(tagIndex);
         node.invalidate();
         return returnPrevious ? previousValue : newValue;
     }
@@ -146,7 +207,7 @@ final class TagHandlerImpl implements TagHandler {
 
     @Override
     public synchronized @NotNull TagHandler copy() {
-        return new TagHandlerImpl(root.copy(null));
+        return new TagHandlerImpl(this);
     }
 
     @Override
@@ -345,6 +406,16 @@ final class TagHandlerImpl implements TagHandler {
             return makePathEntry(tag.getKey(), node);
         }
 
+        <T> T castValue(Tag<T> tag) {
+            final Object value = this.value;
+            if (value instanceof Node n) {
+                final NBTCompound compound = NBT.Compound(Map.of(tag.getKey(), n.compound()));
+                return tag.read(compound);
+            } else {
+                return (T) value;
+            }
+        }
+
         NBT updatedNbt() {
             if (tag.entry.isPath()) return ((Node) value).compound();
             NBT nbt = this.nbt;
@@ -367,6 +438,24 @@ final class TagHandlerImpl implements TagHandler {
             }
             // Entry is not path-able
             return null;
+        }
+    }
+
+    record ListenerEntry<T>(Tag<T> tag, UnaryOperator<T> operator) {
+    }
+
+    static final class BuilderImpl implements TagHandler.Builder {
+        private final Map<String, ListenerEntry<?>> listeners = new HashMap<>();
+
+        @Override
+        public <T> @NotNull Builder listen(@NotNull Tag<T> tag, @NotNull UnaryOperator<@Nullable T> value) {
+            this.listeners.put(tag.pathString(), new ListenerEntry<>(tag, value));
+            return this;
+        }
+
+        @Override
+        public @NotNull TagHandler build() {
+            return new TagHandlerImpl(this);
         }
     }
 }
