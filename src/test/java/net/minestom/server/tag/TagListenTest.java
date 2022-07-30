@@ -147,6 +147,39 @@ public class TagListenTest {
     }
 
     @Test
+    public void setNbtConversionDouble() {
+        record Test(int coin) {
+        }
+        record Structure(Test test) {
+        }
+
+        var tag1 = Tag.Integer("coin").path("path", "test");
+        var tag2 = Tag.Structure("path", Structure.class);
+
+        var counter = new AtomicInteger();
+        var handler = TagHandler.builder()
+                .listen(tag1, integer -> {
+                    switch (counter.getAndIncrement()) {
+                        case 0 -> assertEquals(5, integer);
+                        case 1 -> assertEquals(7, integer);
+                        default -> fail();
+                    }
+                    return integer;
+                })
+                .build();
+        // 0
+        handler.setTag(tag1, 5);
+        assertEquals(5, handler.getTag(tag1));
+        assertEquals(new Structure(new Test(5)), handler.getTag(tag2));
+        // 1
+        handler.setTag(tag2, new Structure(new Test(7)));
+        assertEquals(7, handler.getTag(tag1));
+        assertEquals(new Structure(new Test(7)), handler.getTag(tag2));
+
+        assertEquals(2, counter.get());
+    }
+
+    @Test
     public void updateNbtConversion() {
         record Test(int coin) {
         }
