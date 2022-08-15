@@ -3,8 +3,11 @@ package net.minestom.server.command;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
 import net.minestom.server.command.builder.arguments.ArgumentType;
+import net.minestom.server.entity.Player;
 import net.minestom.server.network.packet.server.play.DeclareCommandsPacket;
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -227,8 +230,28 @@ public class CommandPacketTest {
                 """, foo, bar);
     }
 
+    @Test
+    public void issue1326() {
+        var cmd = Graph.builder(ArgumentType.Literal("tp"))
+                .append(ArgumentType.Entity("target"),
+                        new GraphImpl.ExecutionImpl(sender -> sender instanceof ConsoleSender,
+                                null, null, null, null), b ->
+                        b.append(ArgumentType.Double("x"), b1 ->
+                                b1.append(ArgumentType.Double("y"), b2 ->
+                                        b2.append(ArgumentType.Double("z"))))).build();
+        var player = new Player(UUID.randomUUID(), "Test", null);
+        assertPacketGraph("""
+                tp=%
+                0->tp
+                """, player, cmd);
+    }
+
     static void assertPacketGraph(String expected, Graph... graphs) {
-        var packet = GraphConverter.createPacket(Graph.merge(graphs), null);
+        assertPacketGraph(expected, null, graphs);
+    }
+
+    static void assertPacketGraph(String expected, Player player, Graph... graphs) {
+        var packet = GraphConverter.createPacket(Graph.merge(graphs), player);
         CommandTestUtils.assertPacket(packet, expected);
     }
 

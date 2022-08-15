@@ -2,6 +2,8 @@ package net.minestom.server.command;
 
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
+import net.minestom.server.command.builder.arguments.ArgumentType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static net.minestom.server.command.builder.arguments.ArgumentType.Enum;
@@ -113,6 +115,24 @@ public class GraphConversionTest {
         final Command main = new Command("main", "first", "second");
         var graph = Graph.builder(Word("main").from("main", "first", "second")).build();
         assertEqualsGraph(graph, main);
+    }
+
+    @Test
+    //TODO See disable reason
+    @Disabled("Graphs' execution cannot be compared properly which makes this test pass when it shouldn't.")
+    public void issue1326() {
+        var cmd = new Command("tp") {{
+            addConditionalSyntax((s, c) -> s instanceof ConsoleSender, null, ArgumentType.Entity("target"),
+                    ArgumentType.Double("x"), ArgumentType.Double("y"), ArgumentType.Double("z"));
+        }};
+        var graph = Graph.builder(ArgumentType.Literal("tp"))
+                .append(ArgumentType.Entity("target"),
+                        new GraphImpl.ExecutionImpl(sender -> sender instanceof ConsoleSender,
+                                null, null, null, null), b ->
+                                b.append(ArgumentType.Double("x"), b1 ->
+                                        b1.append(ArgumentType.Double("y"), b2 ->
+                                                b2.append(ArgumentType.Double("z"))))).build();
+        assertEqualsGraph(graph, cmd);
     }
 
     private static void assertEqualsGraph(Graph expected, Command command) {
