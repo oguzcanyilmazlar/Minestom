@@ -108,6 +108,7 @@ record GraphImpl(NodeImpl root) implements Graph {
         static ExecutionImpl fromSyntax(CommandSyntax syntax) {
             final CommandExecutor executor = syntax.getExecutor();
             final CommandCondition condition = syntax.getCommandCondition();
+            //TODO Check if condition can be removed here since it's already added at the beginning of the syntax
             return new ExecutionImpl(commandSender -> condition == null || condition.canUse(commandSender, null),
                     null, null, executor, condition);
         }
@@ -131,10 +132,16 @@ record GraphImpl(NodeImpl root) implements Graph {
             // Syntaxes
             for (CommandSyntax syntax : command.getSyntaxes()) {
                 ConversionNode syntaxNode = root;
+                final CommandCondition condition = syntax.getCommandCondition();
+                //TODO Index based loop to make the first/last checks nicer
                 for (Argument<?> arg : syntax.getArguments()) {
+                    boolean first = arg == syntax.getArguments()[0];
                     boolean last = arg == syntax.getArguments()[syntax.getArguments().length - 1];
                     syntaxNode = syntaxNode.nextMap.computeIfAbsent(arg, argument -> {
-                        var ex = last ? ExecutionImpl.fromSyntax(syntax) : null;
+                        var ex = first && condition != null ?
+                                new ExecutionImpl(commandSender -> condition.canUse(commandSender, null),
+                                        null, null, null, condition) : null;
+                        ex = last ? ExecutionImpl.fromSyntax(syntax) : ex;
                         return new ConversionNode(argument, ex);
                     });
                 }
