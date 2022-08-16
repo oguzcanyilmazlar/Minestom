@@ -2,8 +2,11 @@ package net.minestom.server.command;
 
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.CommandContext;
+import net.minestom.server.command.builder.arguments.ArgumentType;
 import net.minestom.server.command.builder.condition.CommandCondition;
 import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static net.minestom.server.command.builder.arguments.ArgumentType.Literal;
 import static org.junit.jupiter.api.Assertions.*;
@@ -79,6 +82,24 @@ public class GraphConversionExecutorTest {
         final CommandCondition condition = execution.condition();
         assertNotNull(condition);
         assertFalse(condition.canUse(null, null));
+    }
+
+
+    @Test
+    public void issue1326() {
+        final AtomicBoolean b = new AtomicBoolean(true);
+        var cmd = new Command("tp") {{
+            addConditionalSyntax((s, c) -> b.getAndSet(false), null, ArgumentType.Entity("target"),
+                    ArgumentType.Double("x"), ArgumentType.Double("y"), ArgumentType.Double("z"));
+        }};
+        var graph = Graph.fromCommand(cmd);
+        final Graph.Node target = graph.root().next().get(0);
+        final Graph.Execution execution = target.execution();
+        assertNotNull(execution);
+        final CommandCondition condition = execution.condition();
+        assertNotNull(condition);
+        assertTrue(condition.canUse(null, null));
+        assertFalse(b.get(), "Condition wasn't executed.");
     }
 
     private static void dummyExecutor(CommandSender sender, CommandContext context) {
