@@ -10,7 +10,6 @@ import static net.minestom.server.network.NetworkBuffer.*;
 
 public record ClientCommandChatPacket(@NotNull String message, long timestamp,
                                       long salt, @NotNull ArgumentSignatures signatures,
-                                      boolean signedPreview,
                                       LastSeenMessages.@NotNull Update lastSeenMessages) implements ClientPacket {
     public ClientCommandChatPacket {
         if (message.length() > 256) {
@@ -20,7 +19,8 @@ public record ClientCommandChatPacket(@NotNull String message, long timestamp,
 
     public ClientCommandChatPacket(@NotNull NetworkBuffer reader) {
         this(reader.read(STRING), reader.read(LONG),
-                reader.read(LONG), new ArgumentSignatures(reader), reader.read(BOOLEAN), new LastSeenMessages.Update(reader));
+                reader.read(LONG), new ArgumentSignatures(reader),
+                new LastSeenMessages.Update(reader));
     }
 
     @Override

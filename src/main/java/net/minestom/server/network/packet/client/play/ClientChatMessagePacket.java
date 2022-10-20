@@ -5,12 +5,13 @@ import net.minestom.server.crypto.MessageSignature;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.client.ClientPacket;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static net.minestom.server.network.NetworkBuffer.*;
 
 public record ClientChatMessagePacket(@NotNull String message,
-                                      long timestamp, long salt, @NotNull MessageSignature signature,
-                                      boolean signedPreview,
+                                      long timestamp, long salt,
+                                      @Nullable MessageSignature signature,
                                       @NotNull LastSeenMessages.Update lastSeenMessages) implements ClientPacket {
     public ClientChatMessagePacket {
         if (message.length() > 256) {
@@ -20,8 +21,8 @@ public record ClientChatMessagePacket(@NotNull String message,
 
     public ClientChatMessagePacket(@NotNull NetworkBuffer reader) {
         this(reader.read(STRING),
-                reader.read(LONG), reader.read(LONG), new MessageSignature(reader),
-                reader.read(BOOLEAN),
+                reader.read(LONG), reader.read(LONG),
+                reader.readOptional(MessageSignature::new),
                 new LastSeenMessages.Update(reader));
     }
 
@@ -30,8 +31,7 @@ public record ClientChatMessagePacket(@NotNull String message,
         writer.write(STRING, message);
         writer.write(LONG, timestamp);
         writer.write(LONG, salt);
-        writer.write(signature);
-        writer.write(BOOLEAN, signedPreview);
+        writer.writeOptional(signature);
         writer.write(lastSeenMessages);
     }
 }

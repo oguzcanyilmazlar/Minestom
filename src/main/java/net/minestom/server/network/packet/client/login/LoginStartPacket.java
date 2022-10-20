@@ -26,12 +26,14 @@ import java.util.concurrent.ThreadLocalRandom;
 import static net.minestom.server.network.NetworkBuffer.*;
 
 public record LoginStartPacket(@NotNull String username,
+                               @NotNull UUID sessionId,
                                @Nullable PlayerPublicKey publicKey,
                                @Nullable UUID profileId) implements ClientPreplayPacket {
     private static final Component ALREADY_CONNECTED = Component.text("You are already on this server", NamedTextColor.RED);
 
     public LoginStartPacket(@NotNull NetworkBuffer reader) {
-        this(reader.read(STRING), reader.readOptional(PlayerPublicKey::new), reader.readOptional(UUID));
+        this(reader.read(STRING), reader.read(UUID),
+                reader.readOptional(PlayerPublicKey::new), reader.readOptional(UUID));
     }
 
     @Override
