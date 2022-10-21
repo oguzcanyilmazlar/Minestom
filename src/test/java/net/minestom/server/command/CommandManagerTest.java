@@ -1,12 +1,12 @@
 package net.minestom.server.command;
 
 import net.minestom.server.command.builder.Command;
-import net.minestom.server.network.packet.server.play.DeclareCommandsPacket;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandManagerTest {
 
@@ -44,16 +44,4 @@ public class CommandManagerTest {
         manager.executeServerCommand("invalid_command");
         assertTrue(check.get());
     }
-
-    private static void assertNodeEquals(DeclareCommandsPacket.Node node, byte flags, int[] children, int redirectedNode,
-                                         String name, String parser, byte[] properties, String suggestionsType) {
-        assertEquals(flags, node.flags);
-        assertArrayEquals(children, node.children);
-        assertEquals(redirectedNode, node.redirectedNode);
-        assertEquals(name, node.name);
-        assertEquals(parser, node.parser);
-        assertArrayEquals(properties, node.properties);
-        assertEquals(suggestionsType, node.suggestionsType);
-    }
-
 }

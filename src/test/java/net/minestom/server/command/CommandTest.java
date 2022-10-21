@@ -54,7 +54,7 @@ public class CommandTest {
     }
 
     @Test
-    public void testConflictingSyntaxAndSubcommand() {
+    public void conflictSubcommandString() {
         final CommandManager manager = new CommandManager();
 
         final AtomicBoolean subcommandRun = new AtomicBoolean();
@@ -75,5 +75,32 @@ public class CommandTest {
 
         assertTrue(subcommandRun.get());
         assertFalse(syntaxRun.get());
+    }
+
+    @Test
+    public void conflictLiteralString() {
+        final CommandManager manager = new CommandManager();
+
+        final AtomicBoolean literalBool = new AtomicBoolean();
+        final AtomicBoolean stringBool = new AtomicBoolean();
+
+        final Command command = new Command("command");
+        var literal = ArgumentType.Literal("literal");
+        var string = ArgumentType.String("id");
+        command.addSyntax((sender, ctx) -> stringBool.set(true), string);
+        command.addSyntax((sender, ctx) -> literalBool.set(true), literal);
+
+        manager.register(command);
+
+        manager.executeServerCommand("command literal");
+        assertTrue(literalBool.get());
+        assertFalse(stringBool.get());
+
+        literalBool.set(false);
+        stringBool.set(false);
+
+        manager.executeServerCommand("command string");
+        assertFalse(literalBool.get());
+        assertTrue(stringBool.get());
     }
 }
