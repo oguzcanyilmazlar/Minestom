@@ -1,37 +1,42 @@
 package net.minestom.server.network.packet.client.play;
 
-import net.minestom.server.crypto.LastSeenMessages;
+import net.kyori.adventure.text.Component;
+import net.minestom.server.crypto.ChatBound;
+import net.minestom.server.crypto.FilterMask;
 import net.minestom.server.crypto.MessageSignature;
+import net.minestom.server.crypto.SignedMessageBody;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.client.ClientPacket;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static net.minestom.server.network.NetworkBuffer.*;
+import java.util.UUID;
 
-public record ClientChatMessagePacket(@NotNull String message,
-                                      long timestamp, long salt,
+import static net.minestom.server.network.NetworkBuffer.COMPONENT;
+import static net.minestom.server.network.NetworkBuffer.VAR_INT;
+
+public record ClientChatMessagePacket(@NotNull UUID sender, int index,
                                       @Nullable MessageSignature signature,
-                                      @NotNull LastSeenMessages.Update lastSeenMessages) implements ClientPacket {
-    public ClientChatMessagePacket {
-        if (message.length() > 256) {
-            throw new IllegalArgumentException("Message cannot be more than 256 characters long.");
-        }
-    }
+                                      SignedMessageBody.@NotNull Packed body,
+                                      @Nullable Component unsignedContent, FilterMask filterMask,
+                                      @NotNull ChatBound chatBound) implements ClientPacket {
 
     public ClientChatMessagePacket(@NotNull NetworkBuffer reader) {
-        this(reader.read(STRING),
-                reader.read(LONG), reader.read(LONG),
+        this(reader.read(NetworkBuffer.UUID), reader.read(VAR_INT),
                 reader.readOptional(MessageSignature::new),
-                new LastSeenMessages.Update(reader));
+                new SignedMessageBody.Packed(reader),
+                reader.readOptional(COMPONENT), new FilterMask(reader),
+                new ChatBound(reader));
     }
 
     @Override
     public void write(@NotNull NetworkBuffer writer) {
-        writer.write(STRING, message);
-        writer.write(LONG, timestamp);
-        writer.write(LONG, salt);
+        writer.write(NetworkBuffer.UUID, sender);
+        writer.write(VAR_INT, index);
         writer.writeOptional(signature);
-        writer.write(lastSeenMessages);
+        writer.write(body);
+        writer.writeOptional(COMPONENT, unsignedContent);
+        writer.write(filterMask);
+        writer.write(chatBound);
     }
 }
