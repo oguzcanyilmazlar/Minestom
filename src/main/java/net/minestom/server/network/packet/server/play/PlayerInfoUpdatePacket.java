@@ -2,17 +2,17 @@ package net.minestom.server.network.packet.server.play;
 
 import net.kyori.adventure.text.Component;
 import net.minestom.server.entity.GameMode;
+import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.ServerPacketIdentifier;
-import net.minestom.server.utils.binary.BinaryReader;
-import net.minestom.server.utils.binary.BinaryWriter;
-import net.minestom.server.utils.binary.Writeable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
+
+import static net.minestom.server.network.NetworkBuffer.*;
 
 public record PlayerInfoUpdatePacket(@NotNull EnumSet<@NotNull Action> actions,
                                      @NotNull List<@NotNull Entry> entries) implements ServerPacket {
@@ -22,12 +22,12 @@ public record PlayerInfoUpdatePacket(@NotNull EnumSet<@NotNull Action> actions,
     }
 
     @Override
-    public void write(@NotNull BinaryWriter writer) {
+    public void write(@NotNull NetworkBuffer writer) {
         writer.writeEnumSet(actions, Action.class);
-        writer.writeVarIntList(entries, (binaryWriter, entry) -> {
-            binaryWriter.writeUuid(entry.uuid);
+        writer.writeCollection(entries, (buffer, entry) -> {
+            buffer.write(NetworkBuffer.UUID, entry.uuid);
             for (Action action : actions) {
-                action.writer.write(binaryWriter, entry);
+                action.writer.write(buffer, entry);
             }
         });
     }
@@ -46,38 +46,34 @@ public record PlayerInfoUpdatePacket(@NotNull EnumSet<@NotNull Action> actions,
     }
 
     public record Property(@NotNull String name, @NotNull String value,
-                           @Nullable String signature) implements Writeable {
+                           @Nullable String signature) implements NetworkBuffer.Writer {
         public Property(String name, String value) {
             this(name, value, null);
         }
 
-        public Property(BinaryReader reader) {
-            this(reader.readSizedString(), reader.readSizedString(),
-                    reader.readBoolean() ? reader.readSizedString() : null);
+        public Property(@NotNull NetworkBuffer reader) {
+            this(reader.read(STRING), reader.read(STRING),
+                    reader.readOptional(STRING));
         }
 
         @Override
-        public void write(BinaryWriter writer) {
-            writer.writeSizedString(name);
-            writer.writeSizedString(value);
-            writer.writeBoolean(signature != null);
-            if (signature != null) writer.writeSizedString(signature);
+        public void write(@NotNull NetworkBuffer writer) {
+            writer.write(STRING, name);
+            writer.write(STRING, value);
+            writer.writeOptional(STRING, signature);
         }
     }
 
     public enum Action {
         ADD_PLAYER((writer, entry) -> {
-            writer.writeSizedString(entry.username);
-            writer.writeVarIntList(entry.properties, BinaryWriter::write);
+            writer.write(STRING, entry.username);
+            writer.writeCollection(entry.properties);
         }),
         INITIALIZE_CHAT(null),
-        UPDATE_GAME_MODE((writer, entry) -> writer.writeVarInt(entry.gameMode.ordinal())),
-        UPDATE_LISTED((writer, entry) -> writer.writeBoolean(entry.listed)),
-        UPDATE_LATENCY((writer, entry) -> writer.writeVarInt(entry.latency)),
-        UPDATE_DISPLAY_NAME((writer, entry) -> {
-            writer.writeBoolean(entry.displayName != null);
-            if (entry.displayName != null) writer.writeComponent(entry.displayName);
-        });
+        UPDATE_GAME_MODE((writer, entry) -> writer.write(VAR_INT, entry.gameMode.ordinal())),
+        UPDATE_LISTED((writer, entry) -> writer.write(BOOLEAN, entry.listed)),
+        UPDATE_LATENCY((writer, entry) -> writer.write(VAR_INT, entry.latency)),
+        UPDATE_DISPLAY_NAME((writer, entry) -> writer.writeOptional(COMPONENT, entry.displayName));
 
         final Writer writer;
 
@@ -86,7 +82,7 @@ public record PlayerInfoUpdatePacket(@NotNull EnumSet<@NotNull Action> actions,
         }
 
         interface Writer {
-            void write(BinaryWriter writer, Entry entry);
+            void write(NetworkBuffer writer, Entry entry);
         }
     }
 }

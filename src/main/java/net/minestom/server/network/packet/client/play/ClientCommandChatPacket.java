@@ -6,7 +6,8 @@ import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.client.ClientPacket;
 import org.jetbrains.annotations.NotNull;
 
-import static net.minestom.server.network.NetworkBuffer.*;
+import static net.minestom.server.network.NetworkBuffer.LONG;
+import static net.minestom.server.network.NetworkBuffer.STRING;
 
 public record ClientCommandChatPacket(@NotNull String message, long timestamp,
                                       long salt, @NotNull ArgumentSignatures signatures,
@@ -29,7 +30,6 @@ public record ClientCommandChatPacket(@NotNull String message, long timestamp,
         writer.write(LONG, timestamp);
         writer.write(LONG, salt);
         writer.write(signatures);
-        writer.write(BOOLEAN, signedPreview);
         writer.write(lastSeenMessages);
     }
 }

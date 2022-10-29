@@ -1,9 +1,8 @@
 package net.minestom.server.network.packet.server.play;
 
+import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.ServerPacketIdentifier;
-import net.minestom.server.utils.binary.BinaryReader;
-import net.minestom.server.utils.binary.BinaryWriter;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -14,16 +13,13 @@ public record PlayerInfoRemovePacket(@NotNull List<@NotNull UUID> uuids) impleme
         uuids = List.copyOf(uuids);
     }
 
-    public PlayerInfoRemovePacket(@NotNull BinaryReader reader) {
-        this(reader.readVarIntList(BinaryReader::readUuid));
+    public PlayerInfoRemovePacket(@NotNull NetworkBuffer reader) {
+        this(reader.readCollection(NetworkBuffer.UUID));
     }
 
     @Override
-    public void write(BinaryWriter writer) {
-        writer.writeVarInt(uuids.size());
-        for (UUID uuid : uuids) {
-            writer.writeUuid(uuid);
-        }
+    public void write(@NotNull NetworkBuffer writer) {
+        writer.writeCollection(NetworkBuffer.UUID, uuids);
     }
 
     @Override
