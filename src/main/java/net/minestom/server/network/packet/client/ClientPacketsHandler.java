@@ -84,24 +84,25 @@ public sealed class ClientPacketsHandler permits ClientPacketsHandler.Status, Cl
             register(0x1D, ClientEntityActionPacket::new);
             register(0x1E, ClientSteerVehiclePacket::new);
             register(0x1F, ClientPongPacket::new);
-            register(0x20, ClientSetRecipeBookStatePacket::new);
-            register(0x21, ClientSetDisplayedRecipePacket::new);
-            register(0x22, ClientNameItemPacket::new);
-            register(0x23, ClientResourcePackStatusPacket::new);
-            register(0x24, ClientAdvancementTabPacket::new);
-            register(0x25, ClientSelectTradePacket::new);
-            register(0x26, ClientSetBeaconEffectPacket::new);
-            register(0x27, ClientHeldItemChangePacket::new);
-            register(0x28, ClientUpdateCommandBlockPacket::new);
-            register(0x29, ClientUpdateCommandBlockMinecartPacket::new);
-            register(0x2A, ClientCreativeInventoryActionPacket::new);
+            register(0x20, ClientChatSessionUpdatePacket::new);
+            register(0x21, ClientSetRecipeBookStatePacket::new);
+            register(0x22, ClientSetDisplayedRecipePacket::new);
+            register(0x23, ClientNameItemPacket::new);
+            register(0x24, ClientResourcePackStatusPacket::new);
+            register(0x25, ClientAdvancementTabPacket::new);
+            register(0x26, ClientSelectTradePacket::new);
+            register(0x27, ClientSetBeaconEffectPacket::new);
+            register(0x28, ClientHeldItemChangePacket::new);
+            register(0x29, ClientUpdateCommandBlockPacket::new);
+            register(0x2A, ClientUpdateCommandBlockMinecartPacket::new);
+            register(0x2B, ClientCreativeInventoryActionPacket::new);
             // 0x2B Update Jigsaw Block
-            register(0x2C, ClientUpdateStructureBlockPacket::new);
-            register(0x2D, ClientUpdateSignPacket::new);
-            register(0x2E, ClientAnimationPacket::new);
-            register(0x2F, ClientSpectatePacket::new);
-            register(0x30, ClientPlayerBlockPlacementPacket::new);
-            register(0x31, ClientUseItemPacket::new);
+            register(0x2D, ClientUpdateStructureBlockPacket::new);
+            register(0x2E, ClientUpdateSignPacket::new);
+            register(0x2F, ClientAnimationPacket::new);
+            register(0x30, ClientSpectatePacket::new);
+            register(0x31, ClientPlayerBlockPlacementPacket::new);
+            register(0x32, ClientUseItemPacket::new);
         }
     }
 }
