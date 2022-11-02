@@ -28,6 +28,7 @@ import net.minestom.server.effects.Effects;
 import net.minestom.server.entity.damage.DamageType;
 import net.minestom.server.entity.fakeplayer.FakePlayer;
 import net.minestom.server.entity.metadata.PlayerMeta;
+import net.minestom.server.entity.player.ChatSession;
 import net.minestom.server.entity.vehicle.PlayerVehicleInformation;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.inventory.InventoryOpenEvent;
@@ -35,6 +36,7 @@ import net.minestom.server.event.item.ItemDropEvent;
 import net.minestom.server.event.item.ItemUpdateStateEvent;
 import net.minestom.server.event.item.PickupExperienceEvent;
 import net.minestom.server.event.player.*;
+import net.minestom.server.extras.MojangAuth;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.EntityTracker;
 import net.minestom.server.instance.Instance;
@@ -201,6 +203,7 @@ public class Player extends LivingEntity implements CommandSender, Localizable, 
     // Adventure
     private Identity identity;
     private final Pointers pointers;
+    private ChatSession chatSession;
 
     public Player(@NotNull UUID uuid, @NotNull String username, @NotNull PlayerConnection playerConnection) {
         super(EntityType.PLAYER, uuid);
@@ -1910,7 +1913,7 @@ public class Player extends LivingEntity implements CommandSender, Localizable, 
                 List.of();
         return new PlayerInfoUpdatePacket(EnumSet.of(PlayerInfoUpdatePacket.Action.ADD_PLAYER, PlayerInfoUpdatePacket.Action.UPDATE_LISTED),
                 List.of(new PlayerInfoUpdatePacket.Entry(getUuid(), getUsername(), prop,
-                        true, getLatency(), getGameMode(), displayName)));
+                        true, getLatency(), getGameMode(), displayName, chatSession)));
     }
 
     /**
@@ -2066,6 +2069,19 @@ public class Player extends LivingEntity implements CommandSender, Localizable, 
                     MinecraftServer.getChunkViewDistance(), chunkAdder, chunkRemover);
             this.chunksLoadedByClient = new Vec(newX, newZ);
         }
+    }
+
+    public void setChatSession(ChatSession chatSession) {
+        this.chatSession = chatSession;
+        if (!MojangAuth.isEnabled()) {
+            // Client will throw "Invalid signature for profile public key." error if
+            // we send this packet in offline mode, needs more investigation to find
+            // exact cause and possible solution
+            return;
+        }
+        final PlayerInfoUpdatePacket updatePacket = new PlayerInfoUpdatePacket(EnumSet.of(PlayerInfoUpdatePacket.Action.INITIALIZE_CHAT), List.of(new PlayerInfoUpdatePacket.Entry(uuid, username,
+                List.of(), true, latency, gameMode, displayName, chatSession)));
+        PacketUtils.broadcastPacket(updatePacket);
     }
 
     /**

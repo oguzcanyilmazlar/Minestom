@@ -11,6 +11,7 @@ import net.minestom.server.message.ChatPosition;
 import net.minestom.server.message.Messenger;
 import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.packet.client.play.ClientChatMessagePacket;
+import net.minestom.server.network.packet.client.play.ClientChatSessionUpdatePacket;
 import net.minestom.server.network.packet.client.play.ClientCommandChatPacket;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,6 +39,10 @@ public class ChatMessageListener {
         }
 
         final Collection<Player> players = CONNECTION_MANAGER.getOnlinePlayers();
+        // First message with online mode enabled will be verified
+//        PacketUtils.sendGroupedPacket(players, new PlayerChatMessagePacket(player.getUuid(), 0, packet.signature(),
+//                new SignedMessageBody.Packed(packet.message(), Instant.ofEpochMilli(packet.timestamp()), packet.salt(), new LastSeenMessages.Packed(List.of())),
+//                null, new FilterMask(FilterMask.Type.PASS_THROUGH, new BitSet()), 1, Component.text("test"), null));
         PlayerChatEvent playerChatEvent = new PlayerChatEvent(player, players, () -> buildDefaultChatMessage(player, packet.message()), packet.message());
 
         // Call the event
@@ -73,4 +78,9 @@ public class ChatMessageListener {
                 );
     }
 
+    //TODO Maybe dedicate own class?
+    public static void sessionUpdateListener(ClientChatSessionUpdatePacket packet, Player player) {
+        //TODO Verify key
+        player.setChatSession(packet.chatSession());
+    }
 }

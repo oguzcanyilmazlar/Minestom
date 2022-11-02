@@ -2,6 +2,7 @@ package net.minestom.server.network.packet.server.play;
 
 import net.kyori.adventure.text.Component;
 import net.minestom.server.entity.GameMode;
+import net.minestom.server.entity.player.ChatSession;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.ServerPacketIdentifier;
@@ -39,7 +40,7 @@ public record PlayerInfoUpdatePacket(@NotNull EnumSet<@NotNull Action> actions,
 
     public record Entry(UUID uuid, String username, List<Property> properties,
                         boolean listed, int latency, GameMode gameMode,
-                        @Nullable Component displayName) {
+                        @Nullable Component displayName, @Nullable ChatSession chatSession) {
         public Entry {
             properties = List.copyOf(properties);
         }
@@ -69,7 +70,9 @@ public record PlayerInfoUpdatePacket(@NotNull EnumSet<@NotNull Action> actions,
             writer.write(STRING, entry.username);
             writer.writeCollection(entry.properties);
         }),
-        INITIALIZE_CHAT(null),
+        INITIALIZE_CHAT((writer, entry) -> {
+            writer.writeOptional(entry.chatSession);
+        }),
         UPDATE_GAME_MODE((writer, entry) -> writer.write(VAR_INT, entry.gameMode.ordinal())),
         UPDATE_LISTED((writer, entry) -> writer.write(BOOLEAN, entry.listed)),
         UPDATE_LATENCY((writer, entry) -> writer.write(VAR_INT, entry.latency)),

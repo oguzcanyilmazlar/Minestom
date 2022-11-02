@@ -28,6 +28,7 @@ public final class PacketListenerManager {
         setListener(ClientKeepAlivePacket.class, KeepAliveListener::listener);
         setListener(ClientCommandChatPacket.class, ChatMessageListener::commandChatListener);
         setListener(ClientChatMessagePacket.class, ChatMessageListener::chatMessageListener);
+        setListener(ClientChatSessionUpdatePacket.class, ChatMessageListener::sessionUpdateListener);
         setListener(ClientClickWindowPacket.class, WindowListener::clickWindowListener);
         setListener(ClientCloseWindowPacket.class, WindowListener::closeWindowListener);
         setListener(ClientPongPacket.class, WindowListener::pong);
