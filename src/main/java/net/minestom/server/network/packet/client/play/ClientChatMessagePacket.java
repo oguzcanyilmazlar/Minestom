@@ -3,13 +3,14 @@ package net.minestom.server.network.packet.client.play;
 import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.client.ClientPacket;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.BitSet;
 
 import static net.minestom.server.network.NetworkBuffer.*;
 
-public record ClientChatMessagePacket(String message, long timestamp, long salt, byte[] signatureData,
+public record ClientChatMessagePacket(String message, long timestamp, long salt, byte @Nullable [] signatureData,
                                       int ackOffset, BitSet ackList) implements ClientPacket {
 
     public ClientChatMessagePacket(@NotNull NetworkBuffer reader) {
