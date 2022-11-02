@@ -10,7 +10,7 @@ import java.util.BitSet;
 
 import static net.minestom.server.network.NetworkBuffer.*;
 
-public record ClientChatMessagePacket(String message, long timestamp, long salt, byte @Nullable [] signatureData,
+public record ClientChatMessagePacket(String message, long timestamp, long salt, byte @Nullable [] signature,
                                       int ackOffset, BitSet ackList) implements ClientPacket {
 
     public ClientChatMessagePacket(@NotNull NetworkBuffer reader) {
@@ -23,7 +23,7 @@ public record ClientChatMessagePacket(String message, long timestamp, long salt,
         writer.write(STRING, message);
         writer.write(LONG, timestamp);
         writer.write(LONG, salt);
-        writer.writeOptional(BYTE_ARRAY, signatureData);
+        writer.writeOptional(BYTE_ARRAY, signature);
         writer.write(VAR_INT, ackOffset);
         writer.write(RAW_BYTES, Arrays.copyOf(ackList.toByteArray(), 3));
     }
